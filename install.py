@@ -1,25 +1,36 @@
-import subprocess
-import sys
+import subprocess, sys, os
 
-# your script to package
-script_name = "text_write.py"
+script_name = "duck_spawner.py"
+app_name = "DuckApp"
 
-# ---------- CHECK AND INSTALL PYINSTALLER ----------
+# check PyInstaller
 try:
     import PyInstaller
-    print("PyInstaller already installed.")
 except ModuleNotFoundError:
-    print("PyInstaller not found. Installing...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pyinstaller"])
 
-# ---------- BUILD EXE ----------
-print(f"Building executable for {script_name} ...")
+# ---------- BUILD ONEFILE EXECUTABLE ----------
+print("Building single-file executable...")
 subprocess.check_call([
-    sys.executable,
-    "-m", "PyInstaller",
+    sys.executable, "-m", "PyInstaller",
     "--onefile",
-    "--noconsole",
+    "--windowed",
+    "--name", app_name,
+    "--add-data", "duck.webp:.",
+    "--add-data", "duck1.webp:.",
     script_name
 ])
 
-print("Done! Check the 'dist' folder for your executable.")
+# # ---------- BUILD MAC APP BUNDLE ----------
+# print("Building macOS app bundle...")
+# subprocess.check_call([
+#     sys.executable, "-m", "PyInstaller",
+#     "--windowed",
+#     "--name", app_name,
+#     "--add-data", "duck.webp:.",
+#     "--add-data", "duck1.webp:.",
+#     "--osx-bundle-identifier", "com.example.duckapp",
+#     script_name
+# ])
+
+print("Done! Check 'dist' folder for executables and app bundle.")
