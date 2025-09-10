@@ -7,26 +7,19 @@ letter = "thank you for helping me test\n"
 repeat_count = 800
 
 # ---------- DETECT DESKTOP ----------
-def get_desktop():
-    home = Path.home()
+home = Path.home()
+desktop = None
 
-    # Linux XDG desktop
-    xdg = os.environ.get("XDG_DESKTOP_DIR")
-    if xdg:
-        path = Path(os.path.expandvars(xdg))
-        if path.exists():
-            return path
+# try common desktop names
+for name in ["Desktop", "Escritorio", "Bureau", "桌面"]:
+    path = home / name
+    if path.exists():
+        desktop = path
+        break
 
-    # common desktop folder names
-    for name in ["Desktop", "Escritorio", "Bureau", "桌面"]:
-        path = home / name
-        if path.exists():
-            return path
-
-    # fallback to home if nothing found
-    return home
-
-desktop = get_desktop()
+# fallback to home if desktop not found
+if desktop is None:
+    desktop = home
 
 # ---------- CREATE TXT FILES ----------
 for i in range(num_files):
