@@ -25,7 +25,7 @@ if __name__ == "__main__":
     for i in range(5):
         x, y = 300 + i * 50, 300 + i * 50
         win = Shaky(x, y)
-        win.setWindowTitle(f"Shakey {i+1}")
+        # win.setWindowTitle(f"Shakey {i+1}")
         windows.append(win)
 
     sys.exit(app.exec_())
