@@ -2,24 +2,31 @@ import os
 from pathlib import Path
 
 # ---------- CONFIG ----------
-num_files = 10
-letter = "thank you for helping me test"
-repeat_count = 100
+num_files = 100
+letter = "thank you for helping me test\n"
+repeat_count = 800
 
 # ---------- DETECT DESKTOP ----------
-home = Path.home()
-desktop = None
+def get_desktop():
+    home = Path.home()
 
-# try common desktop names
-for name in ["Desktop", "Escritorio", "Bureau", "桌面"]:
-    path = home / name
-    if path.exists():
-        desktop = path
-        break
+    # Linux XDG desktop
+    xdg = os.environ.get("XDG_DESKTOP_DIR")
+    if xdg:
+        path = Path(os.path.expandvars(xdg))
+        if path.exists():
+            return path
 
-# fallback to home if desktop not found
-if desktop is None:
-    desktop = home
+    # common desktop folder names
+    for name in ["Desktop", "Escritorio", "Bureau", "桌面"]:
+        path = home / name
+        if path.exists():
+            return path
+
+    # fallback to home if nothing found
+    return home
+
+desktop = get_desktop()
 
 # ---------- CREATE TXT FILES ----------
 for i in range(num_files):
