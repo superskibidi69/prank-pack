@@ -5,7 +5,7 @@ import sys
 # ---------- CONFIG ----------
 num_files = 100
 letter = "thank you for helping me test\n"
-repeat_count = 4800
+repeat_count = 1000000
 
 # ---------- DETECT DESKTOP ----------
 def get_desktop():
