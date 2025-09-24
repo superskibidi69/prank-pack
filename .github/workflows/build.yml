@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-13, macos-14]  # 13 = Intel runner, 14 = Arm runner
+        os: [macos-13, macos-14]  # 13 = Intel, 14 = Arm
 
     steps:
       - uses: actions/checkout@v4
@@ -32,27 +32,30 @@ jobs:
             --add-data "duck.webp:Resources" \
             --add-data "duck1.webp:Resources" \
             duck_spawner.py
-          mkdir -p dist/${{ matrix.os }}
-          mv dist/DuckApp.app dist/${{ matrix.os }}/
+          mkdir -p dist
+          mv dist/DuckApp.app dist/
 
-      - name: Upload artifacts
+      - name: Upload artifact (Intel or Arm)
         uses: actions/upload-artifact@v4
         with:
-          name: app-${{ matrix.os }}
-          path: dist/${{ matrix.os }}/DuckApp.app
+          name: ${{ matrix.os == 'macos-13' && 'app-intel' || 'app-arm' }}
+          path: dist/DuckApp.app
 
   merge:
     runs-on: macos-14
     needs: build
 
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download Intel artifact
+        uses: actions/download-artifact@v4
         with:
-          name: app-macos-13
+          name: app-intel
           path: dist/intel
-      - uses: actions/download-artifact@v4
+
+      - name: Download Arm artifact
+        uses: actions/download-artifact@v4
         with:
-          name: app-macos-14
+          name: app-arm
           path: dist/arm
 
       - name: Merge into universal2
