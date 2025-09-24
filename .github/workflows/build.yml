@@ -1,8 +1,9 @@
 name: Build macOS Universal2 App
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'   # triggers on any tag starting with v
 
 jobs:
   build:
@@ -17,7 +18,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install deps
         run: |
@@ -41,7 +42,7 @@ jobs:
           path: dist/${{ matrix.os }}/DuckApp.app
 
   merge:
-    runs-on: macos-14  # needs lipo
+    runs-on: macos-14
     needs: build
 
     steps:
