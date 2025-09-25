@@ -32,14 +32,22 @@ jobs:
             --add-data "duck.webp:Resources" \
             --add-data "duck1.webp:Resources" \
             duck_spawner.py
-          mkdir -p dist
-          mv dist/DuckApp.app dist/
+          mkdir -p dist/${{ matrix.os }}
+          cp -R dist/DuckApp.app dist/${{ matrix.os }}/DuckApp.app
 
-      - name: Upload artifact (Intel or Arm)
+      - name: Upload artifact (Intel)
+        if: matrix.os == 'macos-13'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os == 'macos-13' && 'app-intel' || 'app-arm' }}
-          path: dist/DuckApp.app
+          name: app-intel
+          path: dist/macos-13/DuckApp.app
+
+      - name: Upload artifact (Arm)
+        if: matrix.os == 'macos-14'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-arm
+          path: dist/macos-14/DuckApp.app
 
   merge:
     runs-on: macos-14
