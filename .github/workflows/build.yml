@@ -83,7 +83,7 @@ jobs:
           set -x
           echo "Intel artifact folder:"
           ls -lR dist/intel
-          if [ ! -d "dist/intel/DuckApp.app" ]; then
+          if [ ! -d "dist/intel/DuckApp" ]; then
             echo "ERROR: Intel artifact missing!"
             exit 1
           fi
