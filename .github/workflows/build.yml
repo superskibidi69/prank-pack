@@ -39,8 +39,8 @@ jobs:
 
           # fix Info.plist
           plist_path="dist/DuckApp.app/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 13.0" "$plist_path" || \
-            /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 13.0" "$plist_path"
+          /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 10.13" "$plist_path" || \
+            /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 10.13" "$plist_path"
           /usr/libexec/PlistBuddy -c "Set :CFBundleSupportedPlatforms:0 MacOSX" "$plist_path" || \
             /usr/libexec/PlistBuddy -c "Add :CFBundleSupportedPlatforms array" "$plist_path"
 
