@@ -1,4 +1,4 @@
-name: Build macOS Universal2 App
+name: Build macOS Apple Silicon App
 
 on:
   push:
@@ -10,10 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-13, macos-14]
+    runs-on: macos-14  # Only build on Apple Silicon runner
 
     steps:
       - uses: actions/checkout@v4
@@ -42,76 +39,21 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleSupportedPlatforms:0 MacOSX" "$plist_path" || \
             /usr/libexec/PlistBuddy -c "Add :CFBundleSupportedPlatforms array" "$plist_path"
 
-          if [ "${{ matrix.os }}" = "macos-13" ]; then
-            outdir="dist/intel"
-          else
-            outdir="dist/arm"
-          fi
-          mkdir -p "$outdir"
-          cp -R dist/DuckApp.app "$outdir/"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os == 'macos-13' && 'app-intel' || 'app-arm' }}
-          path: ${{ matrix.os == 'macos-13' && 'dist/intel/DuckApp.app' || 'dist/arm/DuckApp.app' }}
-
-  merge:
-    runs-on: macos-14
-    needs: build
-
-    steps:
-      - name: Download Intel artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: app-intel
-          path: dist/intel
-
-      - name: Download Arm artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: app-arm
-          path: dist/arm
-
-      - name: Fix artifact structure
+      - name: Verify architecture
         run: |
-          for arch in intel arm; do
-            if [ -d "dist/$arch/Contents" ]; then
-              mkdir -p dist/$arch-fixed/DuckApp.app
-              mv dist/$arch/* dist/$arch-fixed/DuckApp.app/
-              rm -rf dist/$arch
-              mv dist/$arch-fixed dist/$arch
-            fi
-          done
-
-      - name: Merge into universal2
-        run: |
-          mkdir -p dist/universal/DuckApp.app/Contents/MacOS
-          cp -R dist/intel/DuckApp.app/* dist/universal/DuckApp.app/
-          lipo -create \
-            dist/intel/DuckApp.app/Contents/MacOS/DuckApp \
-            dist/arm/DuckApp.app/Contents/MacOS/DuckApp \
-            -output dist/universal/DuckApp.app/Contents/MacOS/DuckApp
-          chmod +x dist/universal/DuckApp.app/Contents/MacOS/DuckApp
-
-      - name: Create ad-hoc signature
-        run: |
-          # Skip deep signing and just sign the main executable
-          codesign --force --verbose -s - dist/universal/DuckApp.app
-          
-          # Remove any extended attributes
-          xattr -cr dist/universal/DuckApp.app
+          file dist/DuckApp.app/Contents/MacOS/DuckApp
+          lipo -info dist/DuckApp.app/Contents/MacOS/DuckApp
 
       - name: Create DMG
         run: |
           hdiutil create -volname "DuckApp" \
-            -srcfolder dist/universal/DuckApp.app \
+            -srcfolder dist/DuckApp.app \
             -ov -format UDZO \
-            dist/DuckApp-universal.dmg
+            dist/DuckApp-arm64.dmg
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/DuckApp-universal.dmg
+          files: dist/DuckApp-arm64.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
