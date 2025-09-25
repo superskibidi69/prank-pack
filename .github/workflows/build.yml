@@ -3,14 +3,14 @@ name: Build macOS Universal2 App
 on:
   push:
     tags:
-      - 'v*'   # triggers on any tag starting with v
+      - 'v*'
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-13, macos-14]  # 13 = Intel, 14 = Arm
+        os: [macos-13, macos-14]
 
     steps:
       - uses: actions/checkout@v4
@@ -22,11 +22,13 @@ jobs:
 
       - name: Install deps
         run: |
+          set -x
           python -m pip install --upgrade pip
           pip install pyinstaller pillow pyobjc
 
       - name: Build app with PyInstaller
         run: |
+          set -x
           pyinstaller --windowed \
             --name DuckApp \
             --add-data "duck.webp:Resources" \
@@ -34,34 +36,41 @@ jobs:
             duck_spawner.py
           mkdir -p dist/${{ matrix.os }}
           cp -R dist/DuckApp.app dist/${{ matrix.os }}/
+          echo "Contents of dist/${{ matrix.os }}:"
+          ls -lR dist/${{ matrix.os }}
 
-      - name: Upload artifact (Intel)
-        if: matrix.os == 'macos-13'
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-intel
-          path: dist/macos-13/DuckApp.app
-
-      - name: Upload artifact (Arm)
-        if: matrix.os == 'macos-14'
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-arm
-          path: dist/macos-14/DuckApp.app
+          name: ${{ matrix.os == 'macos-13' && 'app-intel' || 'app-arm' }}
+          path: dist/${{ matrix.os }}/DuckApp.app
 
   merge:
     runs-on: macos-14
     needs: build
 
     steps:
+      - name: Debug before downloads
+        run: |
+          set -x
+          echo "pwd: $(pwd)"
+          ls -lR
+
       - name: Download Intel artifact
         uses: actions/download-artifact@v4
         with:
           name: app-intel
           path: dist/intel
 
-      - name: Unzip Intel artifact
-        run: unzip -q dist/intel/*.zip -d dist/intel
+      - name: Check Intel artifact
+        run: |
+          set -x
+          echo "Intel artifact folder:"
+          ls -lR dist/intel
+          if [ ! -d "dist/intel/DuckApp.app" ]; then
+            echo "ERROR: Intel artifact missing!"
+            exit 1
+          fi
 
       - name: Download Arm artifact
         uses: actions/download-artifact@v4
@@ -69,23 +78,40 @@ jobs:
           name: app-arm
           path: dist/arm
 
-      - name: Unzip Arm artifact
-        run: unzip -q dist/arm/*.zip -d dist/arm
+      - name: Check Arm artifact
+        run: |
+          set -x
+          echo "Arm artifact folder:"
+          ls -lR dist/arm
+          if [ ! -d "dist/arm/DuckApp.app" ]; then
+            echo "ERROR: Arm artifact missing!"
+            exit 1
+          fi
 
       - name: Merge into universal2
         run: |
+          set -x
           mkdir -p dist/universal/DuckApp.app/Contents/MacOS
+          echo "Copying Intel .app contents..."
           cp -R dist/intel/DuckApp.app/* dist/universal/DuckApp.app/
+          echo "Listing dist/universal after copy:"
+          ls -lR dist/universal
+          echo "Running lipo..."
           lipo -create \
             dist/intel/DuckApp.app/Contents/MacOS/DuckApp \
             dist/arm/DuckApp.app/Contents/MacOS/DuckApp \
             -output dist/universal/DuckApp.app/Contents/MacOS/DuckApp
+          echo "Lipo done, final MacOS folder:"
+          ls -lR dist/universal/DuckApp.app/Contents/MacOS
 
       - name: Create DMG
         run: |
+          set -x
           hdiutil create -volname "DuckApp" \
             -srcfolder dist/universal/DuckApp.app \
             -ov -format UDZO dist/DuckApp-universal.dmg
+          echo "DMG contents:"
+          ls -l dist/
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
