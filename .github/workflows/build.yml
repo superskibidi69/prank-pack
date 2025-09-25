@@ -34,16 +34,32 @@ jobs:
             --add-data "duck.webp:Resources" \
             --add-data "duck1.webp:Resources" \
             duck_spawner.py
-          mkdir -p dist/${{ matrix.os }}
-          cp -R dist/DuckApp.app dist/${{ matrix.os }}/
-          echo "Contents of dist/${{ matrix.os }}:"
-          ls -lR dist/${{ matrix.os }}
+
+          # fix Info.plist
+          plist_path="dist/DuckApp.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 13.0" "$plist_path" || \
+            /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 13.0" "$plist_path"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleSupportedPlatforms:0 MacOSX" "$plist_path" || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleSupportedPlatforms array" "$plist_path"
+
+          # choose output folder
+          if [ "${{ matrix.os }}" = "macos-13" ]; then
+            outdir="dist/intel"
+          else
+            outdir="dist/arm"
+          fi
+
+          mkdir -p "$outdir"
+          cp -R dist/DuckApp.app "$outdir/"
+
+          echo "Contents of $outdir:"
+          ls -lR "$outdir"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os == 'macos-13' && 'app-intel' || 'app-arm' }}
-          path: dist/${{ matrix.os }}/DuckApp.app
+          path: ${{ matrix.os == 'macos-13' && 'dist/intel/DuckApp.app' || 'dist/arm/DuckApp.app' }}
 
   merge:
     runs-on: macos-14
