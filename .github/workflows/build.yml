@@ -33,7 +33,7 @@ jobs:
             --add-data "duck1.webp:Resources" \
             duck_spawner.py
           mkdir -p dist/${{ matrix.os }}
-          cp -R dist/DuckApp.app dist/${{ matrix.os }}/DuckApp.app
+          cp -R dist/DuckApp.app dist/${{ matrix.os }}/
 
       - name: Upload artifact (Intel)
         if: matrix.os == 'macos-13'
@@ -60,11 +60,17 @@ jobs:
           name: app-intel
           path: dist/intel
 
+      - name: Unzip Intel artifact
+        run: unzip -q dist/intel/*.zip -d dist/intel
+
       - name: Download Arm artifact
         uses: actions/download-artifact@v4
         with:
           name: app-arm
           path: dist/arm
+
+      - name: Unzip Arm artifact
+        run: unzip -q dist/arm/*.zip -d dist/arm
 
       - name: Merge into universal2
         run: |
