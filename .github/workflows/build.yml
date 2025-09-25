@@ -66,41 +66,115 @@ jobs:
     needs: build
 
     steps:
-      - name: Debug before downloads
+      - name: Create directories
         run: |
-          set -x
-          echo "pwd: $(pwd)"
-          ls -lR
+          mkdir -p dist/intel-orig
+          mkdir -p dist/arm-orig
+          mkdir -p dist/intel
+          mkdir -p dist/arm
 
       - name: Download Intel artifact
         uses: actions/download-artifact@v4
         with:
           name: app-intel
-          path: dist/intel
-
-      - name: Check Intel artifact
-        run: |
-          set -x
-          echo "Intel artifact folder:"
-          ls -lR dist/intel
-          if [ ! -d "dist/intel/DuckApp" ]; then
-            echo "ERROR: Intel artifact missing!"
-            exit 1
-          fi
+          path: dist/intel-orig
 
       - name: Download Arm artifact
         uses: actions/download-artifact@v4
         with:
           name: app-arm
-          path: dist/arm
+          path: dist/arm-orig
 
-      - name: Check Arm artifact
+      - name: Debug artifact structure
         run: |
           set -x
-          echo "Arm artifact folder:"
-          ls -lR dist/arm
-          if [ ! -d "dist/arm/DuckApp.app" ]; then
-            echo "ERROR: Arm artifact missing!"
+          echo "=== Intel artifact structure ==="
+          find dist/intel-orig -type f -name "*.app" | head -5
+          find dist/intel-orig -type d -name "Contents" | head -5
+          echo "=== Arm artifact structure ==="
+          find dist/arm-orig -type f -name "*.app" | head -5
+          find dist/arm-orig -type d -name "Contents" | head -5
+
+      - name: Reconstruct .app bundles
+        run: |
+          set -x
+          
+          # Check what we actually downloaded
+          echo "=== Intel artifact contents ==="
+          ls -la dist/intel-orig/
+          echo "=== Arm artifact contents ==="
+          ls -la dist/arm-orig/
+          
+          # Reconstruct Intel .app bundle
+          if [ -d "dist/intel-orig/Contents" ]; then
+            echo "Reconstructing Intel .app bundle from extracted contents"
+            mkdir -p dist/intel/DuckApp.app
+            cp -R dist/intel-orig/* dist/intel/DuckApp.app/
+          elif [ -d "dist/intel-orig/DuckApp.app" ]; then
+            echo "Intel artifact has proper .app structure"
+            cp -R dist/intel-orig/* dist/intel/
+          else
+            echo "Trying to find .app in Intel artifact"
+            # Look for any .app directory
+            app_dir=$(find dist/intel-orig -name "*.app" -type d | head -1)
+            if [ -n "$app_dir" ]; then
+              echo "Found .app at: $app_dir"
+              cp -R "$app_dir" dist/intel/
+            else
+              echo "ERROR: Could not find .app structure in Intel artifact"
+              exit 1
+            fi
+          fi
+          
+          # Reconstruct Arm .app bundle  
+          if [ -d "dist/arm-orig/Contents" ]; then
+            echo "Reconstructing Arm .app bundle from extracted contents"
+            mkdir -p dist/arm/DuckApp.app
+            cp -R dist/arm-orig/* dist/arm/DuckApp.app/
+          elif [ -d "dist/arm-orig/DuckApp.app" ]; then
+            echo "Arm artifact has proper .app structure"
+            cp -R dist/arm-orig/* dist/arm/
+          else
+            echo "Trying to find .app in Arm artifact"
+            # Look for any .app directory
+            app_dir=$(find dist/arm-orig -name "*.app" -type d | head -1)
+            if [ -n "$app_dir" ]; then
+              echo "Found .app at: $app_dir"
+              cp -R "$app_dir" dist/arm/
+            else
+              echo "ERROR: Could not find .app structure in Arm artifact"
+              exit 1
+            fi
+          fi
+          
+          echo "=== Final structure ==="
+          echo "Intel:"
+          ls -la dist/intel/
+          echo "Arm:"
+          ls -la dist/arm/
+
+      - name: Verify .app bundles
+        run: |
+          set -x
+          echo "=== Verifying Intel .app ==="
+          if [ -d "dist/intel/DuckApp.app" ]; then
+            echo "Intel .app exists"
+            ls -la dist/intel/DuckApp.app/Contents/MacOS/
+            file dist/intel/DuckApp.app/Contents/MacOS/DuckApp || echo "Intel binary check failed"
+          else
+            echo "ERROR: Intel DuckApp.app not found!"
+            find dist/intel -type d -name "*.app" || echo "No .app folders found"
+            exit 1
+          fi
+          
+          echo "=== Verifying Arm .app ==="
+          if [ -d "dist/arm/DuckApp.app" ]; then
+            echo "Arm .app exists"
+            ls -la dist/arm/DuckApp.app/Contents/MacOS/
+            file dist/arm/DuckApp.app/Contents/MacOS/DuckApp || echo "Arm binary check failed"
+          else
+            echo "ERROR: Arm DuckApp.app not found!"
+            find dist/arm -type d -name "*.app" || echo "No .app folders found"
             exit 1
           fi
 
@@ -108,26 +182,38 @@ jobs:
         run: |
           set -x
           mkdir -p dist/universal/DuckApp.app/Contents/MacOS
+          
           echo "Copying Intel .app contents..."
           cp -R dist/intel/DuckApp.app/* dist/universal/DuckApp.app/
-          echo "Listing dist/universal after copy:"
-          ls -lR dist/universal
-          echo "Running lipo..."
+          
+          echo "Running lipo to create universal binary..."
           lipo -create \
             dist/intel/DuckApp.app/Contents/MacOS/DuckApp \
             dist/arm/DuckApp.app/Contents/MacOS/DuckApp \
             -output dist/universal/DuckApp.app/Contents/MacOS/DuckApp
-          echo "Lipo done, final MacOS folder:"
-          ls -lR dist/universal/DuckApp.app/Contents/MacOS
+            
+          echo "Setting executable permissions..."
+          chmod +x dist/universal/DuckApp.app/Contents/MacOS/DuckApp
+          
+          echo "=== Final universal binary info ==="
+          file dist/universal/DuckApp.app/Contents/MacOS/DuckApp
+          lipo -info dist/universal/DuckApp.app/Contents/MacOS/DuckApp
+          
+          echo "=== Universal app structure ==="
+          ls -la dist/universal/DuckApp.app/Contents/MacOS/
 
       - name: Create DMG
         run: |
           set -x
+          echo "Creating DMG..."
           hdiutil create -volname "DuckApp" \
             -srcfolder dist/universal/DuckApp.app \
-            -ov -format UDZO dist/DuckApp-universal.dmg
-          echo "DMG contents:"
+            -ov -format UDZO \
+            dist/DuckApp-universal.dmg
+            
+          echo "DMG created:"
           ls -l dist/
+          hdiutil info dist/DuckApp-universal.dmg
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
