@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -24,13 +25,11 @@ jobs:
 
       - name: Install deps
         run: |
-          set -x
           python -m pip install --upgrade pip
           pip install pyinstaller pillow pyobjc
 
       - name: Build app with PyInstaller
         run: |
-          set -x
           pyinstaller --windowed \
             --name DuckApp \
             --add-data "duck.webp:Resources" \
@@ -53,9 +52,6 @@ jobs:
 
           mkdir -p "$outdir"
           cp -R dist/DuckApp.app "$outdir/"
-
-          echo "Contents of $outdir:"
-          ls -lR "$outdir"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -82,88 +78,42 @@ jobs:
 
       - name: Fix artifact structure
         run: |
-          set -x
-          # If Contents folder exists at root, move it into .app structure
-          if [ -d "dist/intel/Contents" ]; then
-            echo "Fixing Intel artifact structure"
-            mkdir -p dist/intel-fixed/DuckApp.app
-            mv dist/intel/* dist/intel-fixed/DuckApp.app/
-            rm -rf dist/intel
-            mv dist/intel-fixed dist/intel
-          fi
-          
-          if [ -d "dist/arm/Contents" ]; then
-            echo "Fixing Arm artifact structure"
-            mkdir -p dist/arm-fixed/DuckApp.app
-            mv dist/arm/* dist/arm-fixed/DuckApp.app/
-            rm -rf dist/arm
-            mv dist/arm-fixed dist/arm
-          fi
-          
-          echo "Final structure:"
-          ls -l dist/
-
-      - name: Verify .app bundles
-        run: |
-          set -x
-          echo "=== Verifying .app bundles ==="
-          ls -la dist/intel/
-          ls -la dist/arm/
-          
-          if [ ! -d "dist/intel/DuckApp.app" ]; then
-            echo "ERROR: Intel DuckApp.app not found!"
-            exit 1
-          fi
-          if [ ! -d "dist/arm/DuckApp.app" ]; then
-            echo "ERROR: Arm DuckApp.app not found!"
-            exit 1
-          fi
-          
-          echo "=== Binary architectures ==="
-          file dist/intel/DuckApp.app/Contents/MacOS/DuckApp
-          file dist/arm/DuckApp.app/Contents/MacOS/DuckApp
+          for arch in intel arm; do
+            if [ -d "dist/$arch/Contents" ]; then
+              mkdir -p dist/$arch-fixed/DuckApp.app
+              mv dist/$arch/* dist/$arch-fixed/DuckApp.app/
+              rm -rf dist/$arch
+              mv dist/$arch-fixed dist/$arch
+            fi
+          done
 
       - name: Merge into universal2
         run: |
-          set -x
           mkdir -p dist/universal/DuckApp.app/Contents/MacOS
-          
-          echo "Copying Intel .app contents..."
           cp -R dist/intel/DuckApp.app/* dist/universal/DuckApp.app/
-          
-          echo "Running lipo to create universal binary..."
           lipo -create \
             dist/intel/DuckApp.app/Contents/MacOS/DuckApp \
             dist/arm/DuckApp.app/Contents/MacOS/DuckApp \
             -output dist/universal/DuckApp.app/Contents/MacOS/DuckApp
-            
-          echo "Setting executable permissions..."
           chmod +x dist/universal/DuckApp.app/Contents/MacOS/DuckApp
-          
-          echo "=== Universal binary info ==="
-          lipo -info dist/universal/DuckApp.app/Contents/MacOS/DuckApp
-          
-      - name: Fix bundle attrs + perms
+
+      - name: Self-sign app
         run: |
-          set -x
-          # clear quarantine flags
+          # generate temporary self-signed cert
+          cert_name="DuckApp Self-Sign"
+          security create-keychain -p actions build.keychain
+          security import /System/Library/Keychains/SystemRootCertificates.keychain -k build.keychain
+          security create-certificate -n "$cert_name" -k build.keychain -t "Code Signing" || true
+
+          codesign --deep --force --verbose -s "$cert_name" dist/universal/DuckApp.app
           xattr -cr dist/universal/DuckApp.app
-          # make sure binary is executable
-          chmod +x dist/universal/DuckApp.app/Contents/MacOS/DuckApp
-          # sanity check
-          file dist/universal/DuckApp.app/Contents/MacOS/DuckApp
 
       - name: Create DMG
         run: |
-          set -x
-          echo "Creating DMG..."
           hdiutil create -volname "DuckApp" \
             -srcfolder dist/universal \
             -ov -format UDZO \
             dist/DuckApp-universal.dmg
-            
-          echo "DMG created successfully:"
-          ls -lh dist/DuckApp-universal.dmg
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
