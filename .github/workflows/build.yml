@@ -5,6 +5,8 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -152,8 +154,6 @@ jobs:
             
           echo "DMG created successfully:"
           ls -lh dist/DuckApp-universal.dmg
-          echo "File info:"
-          file dist/DuckApp-universal.dmg
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
