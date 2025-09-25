@@ -96,8 +96,19 @@ jobs:
 
       - name: Create ad-hoc signature
         run: |
-          # Use ad-hoc signing (no certificate needed)
+          # Sign nested frameworks first, then the main app
+          if [ -d "dist/universal/DuckApp.app/Contents/Frameworks/Python.framework" ]; then
+            codesign --force --verbose -s - "dist/universal/DuckApp.app/Contents/Frameworks/Python.framework"
+          fi
+          
+          # Sign any other embedded frameworks or libraries
+          find "dist/universal/DuckApp.app/Contents" -name "*.dylib" -o -name "*.so" | while read lib; do
+            codesign --force --verbose -s - "$lib"
+          done
+          
+          # Finally sign the main app
           codesign --deep --force --verbose -s - dist/universal/DuckApp.app
+          
           # Remove any extended attributes that might cause issues
           xattr -cr dist/universal/DuckApp.app
 
