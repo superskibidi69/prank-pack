@@ -142,13 +142,23 @@ jobs:
           
           echo "=== Universal binary info ==="
           lipo -info dist/universal/DuckApp.app/Contents/MacOS/DuckApp
+          
+      - name: Fix bundle attrs + perms
+        run: |
+          set -x
+          # clear quarantine flags
+          xattr -cr dist/universal/DuckApp.app
+          # make sure binary is executable
+          chmod +x dist/universal/DuckApp.app/Contents/MacOS/DuckApp
+          # sanity check
+          file dist/universal/DuckApp.app/Contents/MacOS/DuckApp
 
       - name: Create DMG
         run: |
           set -x
           echo "Creating DMG..."
           hdiutil create -volname "DuckApp" \
-            -srcfolder dist/universal/DuckApp.app \
+            -srcfolder dist/universal \
             -ov -format UDZO \
             dist/DuckApp-universal.dmg
             
