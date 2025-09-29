@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-14  # Only build on Apple Silicon runner
+    runs-on: macos-14  # Apple Silicon runner
 
     steps:
       - uses: actions/checkout@v4
@@ -20,40 +20,40 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller pillow pyobjc
+          pip install pyinstaller pyqt5 pyobjc
 
-      - name: Build app with PyInstaller
+      - name: Build ClickVolume app with PyInstaller
         run: |
           pyinstaller --windowed \
-            --name DuckApp \
-            --add-data "duck.webp:Resources" \
-            --add-data "duck1.webp:Resources" \
-            duck_spawner.py
+            --name eVolumeC \
+            --add-data "1.wav:." \
+            --add-data "2.wav:." \
+            volume_control.py
 
-          plist_path="dist/DuckApp.app/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 10.13" "$plist_path" || \
-            /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 10.13" "$plist_path"
+          plist_path="dist/eVolumeC.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 11.0" "$plist_path" || \
+            /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 11.0" "$plist_path"
           /usr/libexec/PlistBuddy -c "Set :CFBundleSupportedPlatforms:0 MacOSX" "$plist_path" || \
             /usr/libexec/PlistBuddy -c "Add :CFBundleSupportedPlatforms array" "$plist_path"
 
       - name: Verify architecture
         run: |
-          file dist/DuckApp.app/Contents/MacOS/DuckApp
-          lipo -info dist/DuckApp.app/Contents/MacOS/DuckApp
+          file dist/eVolumeC.app/Contents/MacOS/eVolumeC
+          arch dist/eVolumeC.app/Contents/MacOS/eVolumeC
 
       - name: Create DMG
         run: |
-          hdiutil create -volname "DuckApp" \
-            -srcfolder dist/DuckApp.app \
+          hdiutil create -volname "eVolumeC" \
+            -srcfolder dist/eVolumeC.app \
             -ov -format UDZO \
-            dist/DuckApp-arm64.dmg
+            dist/eVolumeC-arm64.dmg
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/DuckApp-arm64.dmg
+          files: dist/eVolumeC-arm64.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
